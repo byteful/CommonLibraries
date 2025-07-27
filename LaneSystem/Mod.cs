@@ -3,7 +3,6 @@ using Colossal.Logging;
 using Game;
 using Game.Modding;
 using Game.SceneFlow;
-using HarmonyLib;
 
 namespace C2VM.CommonLibraries.LaneSystem;
 
@@ -23,9 +22,6 @@ public class Mod : IMod
         {
             m_Log.Info($"Current mod asset at {asset.path}");
         }
-
-        var harmony = new Harmony(m_Id);
-        harmony.PatchAll();
 
         // updateSystem.World.GetOrCreateSystemManaged<Game.Net.LaneSystem>().Enabled = false;
         updateSystem.World.GetOrCreateSystemManaged<Game.Net.C2VMPatchedLaneSystem>().Enabled = false;
