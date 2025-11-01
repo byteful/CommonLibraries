@@ -128,6 +128,8 @@ public partial class C2VMPatchedLaneSystem : GameSystemBase
 
         public TrackTypes m_TrackTypes;
 
+        public RoadTypes m_RoadTypes;
+
         public UtilityTypes m_UtilityTypes;
 
         public bool m_IsEnd;
@@ -1682,8 +1684,10 @@ public partial class C2VMPatchedLaneSystem : GameSystemBase
             if (buffer.Length > 0)
             {
                 ConnectPosition connectPosition = buffer[0];
-                NetCompositionData netCompositionData = m_PrefabCompositionData[connectPosition.m_NodeComposition];
-                float num = (connectPosition.m_IsEnd ? netCompositionData.m_RoundaboutSize.y : netCompositionData.m_RoundaboutSize.x);
+                NetCompositionData compositionData = m_PrefabCompositionData[connectPosition.m_NodeComposition];
+                DynamicBuffer<NetCompositionPiece> pieces = m_PrefabCompositionPieces[connectPosition.m_EdgeComposition];
+                float2 @float = NetCompositionHelpers.CalculateRoundaboutSize(compositionData, pieces);
+                float num = (connectPosition.m_IsEnd ? @float.y : @float.x);
                 float num2 = roundaboutSize - num;
                 for (int i = 0; i < buffer.Length; i++)
                 {
@@ -4858,7 +4862,7 @@ public partial class C2VMPatchedLaneSystem : GameSystemBase
             PrefabRef prefabRef = m_PrefabRefData[edge];
             CompositionData compositionData = GetCompositionData(composition.m_Edge);
             NetCompositionData netCompositionData = m_PrefabCompositionData[composition.m_Edge];
-            NetCompositionData netCompositionData2 = m_PrefabCompositionData[isEnd ? composition.m_EndNode : composition.m_StartNode];
+            NetCompositionData compositionData2 = m_PrefabCompositionData[isEnd ? composition.m_EndNode : composition.m_StartNode];
             NetGeometryData netGeometryData = m_PrefabGeometryData[prefabRef.m_Prefab];
             DynamicBuffer<NetCompositionLane> dynamicBuffer = m_PrefabCompositionLanes[composition.m_Edge];
             EdgeGeometry edgeGeometry = m_EdgeGeometryData[edge];
@@ -4874,8 +4878,10 @@ public partial class C2VMPatchedLaneSystem : GameSystemBase
                 geometry = m_StartNodeGeometryData[edge].m_Geometry;
             }
 
+            DynamicBuffer<NetCompositionPiece> pieces = m_PrefabCompositionPieces[composition.m_Edge];
+            float2 @float = NetCompositionHelpers.CalculateRoundaboutSize(compositionData2, pieces);
             middleRadius = math.max(middleRadius, geometry.m_MiddleRadius);
-            roundaboutSize = math.max(roundaboutSize, math.select(netCompositionData2.m_RoundaboutSize.x, netCompositionData2.m_RoundaboutSize.y, isEnd));
+            roundaboutSize = math.max(roundaboutSize, math.select(@float.x, @float.y, isEnd));
             bool isSideConnection = (netGeometryData.m_MergeLayers & prefabGeometryData.m_MergeLayers) == 0 && (prefabGeometryData.m_MergeLayers & Layer.Road) != 0;
             LaneFlags laneFlags = ((!includeAnchored) ? LaneFlags.FindAnchor : ((LaneFlags)0));
             if (!m_UpdatedData.HasComponent(edge) && m_SubLanes.HasBuffer(edge))
@@ -4976,16 +4982,7 @@ public partial class C2VMPatchedLaneSystem : GameSystemBase
                         NetCompositionLane laneData = dynamicBuffer[num2];
                         laneData.m_Position.x = math.select(0f - laneData.m_Position.x, laneData.m_Position.x, isEnd);
                         float order = laneData.m_Position.x / math.max(1f, netCompositionData.m_Width) + 0.5f;
-                        Lane lane = m_LaneData[subLane];
-                        if (y)
-                        {
-                            laneData.m_Index = (byte)(lane.m_EndNode.GetLaneIndex() & 0xFFu);
-                        }
-                        else
-                        {
-                            laneData.m_Index = (byte)(lane.m_StartNode.GetLaneIndex() & 0xFFu);
-                        }
-
+                        laneData.m_Index = (byte)(m_LaneData[subLane].m_MiddleNode.GetLaneIndex() & 0xFFu);
                         ConnectPosition value = default(ConnectPosition);
                         value.m_LaneData = laneData;
                         value.m_Owner = edge;
@@ -5005,6 +5002,11 @@ public partial class C2VMPatchedLaneSystem : GameSystemBase
                         value.m_IsEnd = isEnd;
                         value.m_Order = order;
                         value.m_IsSideConnection = isSideConnection;
+                        if ((laneData.m_Flags & LaneFlags.Road) != 0)
+                        {
+                            value.m_RoadTypes = m_CarLaneData[laneData.m_Lane].m_RoadTypes;
+                        }
+
                         if ((laneData.m_Flags & LaneFlags.Track) != 0)
                         {
                             value.m_TrackTypes = m_TrackLaneData[laneData.m_Lane].m_TrackTypes;
@@ -5066,6 +5068,11 @@ public partial class C2VMPatchedLaneSystem : GameSystemBase
                     value2.m_IsEnd = isEnd;
                     value2.m_Order = num6;
                     value2.m_IsSideConnection = isSideConnection;
+                    if ((laneData2.m_Flags & LaneFlags.Road) != 0)
+                    {
+                        value2.m_RoadTypes = m_CarLaneData[laneData2.m_Lane].m_RoadTypes;
+                    }
+
                     if ((laneData2.m_Flags & LaneFlags.Track) != 0)
                     {
                         value2.m_TrackTypes = m_TrackLaneData[laneData2.m_Lane].m_TrackTypes;
